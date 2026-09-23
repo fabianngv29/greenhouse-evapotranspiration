@@ -1,103 +1,318 @@
-# Greenhouse Evapotranspiration Dataset
+# Greenhouse Reference Evapotranspiration Dataset
 
-This repository contains the dataset used for **reference evapotranspiration (ETo) estimation under greenhouse conditions**.
+This repository contains the meteorological datasets, processed data, calculated reference evapotranspiration (`ET0`), and model-evaluation results used in the study:
 
-The dataset includes meteorological variables directly measured by a **Davis Vantage Pro2 weather station**, variables derived by the station from the measured environmental conditions, and additional variables calculated for the estimation of reference evapotranspiration.
+**Reference Evapotranspiration Prediction in a Greenhouse Using Reduced Meteorological Inputs: Linear Regression and RNN-LSTM Models**
 
-Data were collected under greenhouse conditions in **Juchipila, Zacatecas, Mexico**, providing a detailed characterization of both indoor and outdoor microclimatic conditions.
+The study was conducted in a naturally ventilated greenhouse located in **Juchipila, Zacatecas, Mexico**, using environmental data acquired with a **Davis Vantage Pro2 weather station**.
 
----
-
-# Data
-
-## 1. Measured Meteorological Variables
-
-The dataset contains meteorological variables directly recorded by the monitoring system inside and outside the greenhouse.
-
-**Variables include:**
-
-* `Ti` → Indoor air temperature (°C)
-* `To` → Outdoor air temperature (°C)
-* `Hi` → Indoor relative humidity (%)
-* `Ho` → Outdoor relative humidity (%)
-* `Rs` → Solar radiation (W/m²)
-
-These variables describe the main environmental conditions observed during the monitoring period.
+The repository provides the complete data workflow used in the study, from the original 5-min meteorological records to the final hourly dataset, the greenhouse-adapted reference evapotranspiration calculation, and the evaluation of reduced-input Linear Regression (LR) and Recurrent Neural Network–Long Short-Term Memory (RNN-LSTM) models.
 
 ---
 
-## 2. Station-Derived Variables
+# Repository Files
 
-In addition to the directly measured variables, the weather station provides several variables and environmental indices derived from the recorded meteorological conditions.
+## 1. `original_data.csv`
 
-**Variables include:**
+This file contains the original meteorological records obtained from the monitoring system before the preprocessing procedure.
 
-* `Di` → Indoor dew point temperature (°C)
-* `Do` → Outdoor dew point temperature (°C)
-* `ST` → Thermal sensation (°C)
-* `IH` → Heat index (°C)
-* `THSW` → Temperature-Humidity-Sun-Wind index (°C)
-* `D-D` → Degree-days
+### Main characteristics
 
-These variables provide complementary information about the thermal and atmospheric conditions observed during data acquisition.
+- Original records: **77,618**
+- Original columns: **14**
+- Nominal sampling interval: **5 min**
+- Monitoring system: **Davis Vantage Pro2**
+- Environment: **Naturally ventilated greenhouse**
+- Location: **Juchipila, Zacatecas, Mexico**
 
----
+The original dataset contains directly measured meteorological variables together with environmental indices automatically reported by the Davis monitoring system.
 
-## 3. Reference Evapotranspiration Variables
-
-Additional variables were calculated from the meteorological records to estimate **reference evapotranspiration (ETo)**.
-
-The calculations follow the **FAO-56 Penman–Monteith methodology**, which considers the physical relationships among radiation, temperature, atmospheric humidity, vapor pressure, and other environmental parameters.
-
-The dataset therefore contains the intermediate variables required for the evapotranspiration calculation, together with the resulting:
-
-* `ETo` → Reference evapotranspiration
-
-These calculated variables allow the complete evapotranspiration estimation process to be reproduced from the available meteorological observations.
+The raw data include missing values, repeated timestamps, and temporal interruptions associated with data acquisition and routine greenhouse or monitoring operations.
 
 ---
 
-# Dataset Characteristics
+## 2. `data_post_preparation.csv`
 
-* **Monitoring system:** Davis Vantage Pro2
-* **Environment:** Greenhouse
-* **Location:** Juchipila, Zacatecas, Mexico
-* **Sampling interval:** 5 min
-* **Monitoring period:** July 12, 2020 to June 24, 2021
-* **Number of records:** 85,989
+This file contains the meteorological dataset obtained after the complete preprocessing and hourly aggregation procedure.
 
-The monitoring period includes indoor and outdoor environmental observations collected continuously, except for interruptions associated with maintenance of the monitoring system and greenhouse infrastructure.
+The preprocessing workflow included:
+
+1. Validation and reconstruction of the `Date` and `Time` fields.
+2. Removal of one record with an invalid timestamp.
+3. Conversion of meteorological variables to numerical format.
+4. Reconstruction of missing solar-radiation values when the equivalent energy measurement was available.
+5. Estimation of remaining missing values within existing records using a multivariable `HistGradientBoostingRegressor`.
+6. Removal of duplicated `Date + Time` observations.
+7. Construction of a regular 5-min temporal grid.
+8. Identification of missing temporal intervals.
+9. Temporal interpolation only for short gaps of up to **15 min**.
+10. Preservation of long acquisition interruptions as periods without observations.
+11. Aggregation from 5-min observations to hourly observations.
+12. Retention only of hours containing all **12 required 5-min measurements**.
+
+The original dataset contained 77,618 records. After timestamp validation and duplicate removal, **69,809 unique 5-min observations** remained. Short-gap interpolation recovered **5,927 missing 5-min observations**.
+
+The final hourly dataset contains:
+
+- **6,300 complete hourly observations**
+- **14 columns**
+- **No missing values within retained hourly records**
+- Approximately **80% hourly temporal coverage**
+- Time span: **12 July 2020 at 20:00 to 5 June 2021 at 22:00**
+
+Long periods without acquisition were not artificially reconstructed. Consequently, the hourly file contains only valid complete observations and preserves temporal gaps between some records.
 
 ---
 
-## 🎯 Purpose of the Dataset
+# Meteorological Variables
 
-This dataset supports:
+The final meteorological dataset includes directly measured variables and variables automatically derived by the Davis Vantage Pro2 system.
 
-* Analysis of greenhouse microclimatic conditions
-* Comparison between indoor and outdoor meteorological variables
-* Analysis of directly measured and station-derived environmental variables
-* Calculation of reference evapotranspiration
-* Reproduction of the ETo estimation procedure
-* Analysis of relationships among meteorological variables and evapotranspiration
-* Development and validation of alternative evapotranspiration estimation approaches
-* Reproducible research workflows
+## Directly measured variables
+
+- `Ti` → Indoor air temperature (°C)
+- `To` → Outdoor air temperature (°C)
+- `Hi` → Indoor relative humidity (%)
+- `Ho` → Outdoor relative humidity (%)
+- `Rs` → Solar radiation (W/m²)
+
+## Station-derived variables
+
+- `Di` → Indoor dew point temperature (°C)
+- `Do` → Outdoor dew point temperature (°C)
+- `ST` → Thermal sensation (°C)
+- `IH` → Heat index (°C)
+- `THSW` → Temperature-Humidity-Sun-Wind index (°C)
+- `D-D` → Degree-days
+
+The station-derived variables were obtained directly from the records generated by the Davis monitoring system and were not independently reconstructed in the study.
 
 ---
 
-## 🛠 Recommended Tools
+## 3. `data_with_Eto.csv`
 
-* Python + Colab / Jupyter
-* Pandas
-* NumPy
-* Matplotlib
-* SciPy
+This file contains the final hourly meteorological dataset together with the variables calculated for the estimation of hourly reference evapotranspiration.
+
+Reference evapotranspiration was calculated using an **hourly FAO-56 Penman–Monteith formulation adapted to the greenhouse conditions considered in the study**.
+
+The file includes the meteorological variables used in the calculation, intermediate physical variables, radiation components, and the final:
+
+- `ETo` → Calculated reference evapotranspiration (mm/h)
+
+Examples of the additional calculated variables include:
+
+- Saturation vapor pressure
+- Actual vapor pressure
+- Vapor pressure deficit
+- Slope of the saturation vapor pressure curve
+- Atmospheric pressure
+- Psychrometric constant
+- Indoor solar radiation
+- Extraterrestrial radiation
+- Clear-sky radiation
+- Net shortwave radiation
+- Net longwave radiation
+- Net radiation
+- Soil heat flux
+- Reference evapotranspiration (`ET0`)
+
+The greenhouse-adapted Penman–Monteith procedure produced **6,300 hourly `ET0` values**, corresponding to the 6,300 complete hourly meteorological observations.
+
+For reference, the calculated hourly `ET0` dataset has:
+
+- Mean: **0.0834 mm h⁻¹**
+- Standard deviation: **0.1159 mm h⁻¹**
+- Minimum: **0.0000 mm h⁻¹**
+- Maximum: **0.5659 mm h⁻¹**
+
+Daily `ET0` values were additionally obtained only for days containing all 24 hourly observations, resulting in **252 complete days**.
+
+> **Important:** `ET0` in this repository is a calculated reference variable obtained from the greenhouse-adapted Penman–Monteith formulation. It is not an independent lysimeter measurement of actual evapotranspiration.
+
+---
+
+## 4. `LR_LSTM_56_configurations.xlsx`
+
+This workbook contains the complete results of the reduced-input modeling experiment performed with **Linear Regression (LR)** and **RNN-LSTM**.
+
+Eight environmental predictors were selected considering their association with calculated `ET0`, redundancy among the available variables, and physical relevance:
+
+- `Rs`
+- `Ti`
+- `THSW`
+- `D-D`
+- `Hi`
+- `IH`
+- `To`
+- `Di`
+
+All possible three-variable combinations were generated:
+
+`C(8,3) = 56`
+
+Therefore, **56 unique three-variable configurations** were evaluated with both LR and RNN-LSTM.
+
+A three-week training window was adopted as the common temporal basis for the final configuration analysis. Each model was trained using three weeks of hourly observations and evaluated on the immediately following week.
+
+The 56 configurations were evaluated across **eight temporal periods distributed throughout the available dataset**. The same temporal periods were used for all configurations and both prediction models.
+
+### Workbook sheets
+
+#### `Configurations`
+
+Contains the complete mapping of configuration IDs (`C-01` to `C-56`) and the three predictor variables associated with each configuration.
+
+#### `LR_56`
+
+Contains the summary results for all 56 configurations evaluated using Linear Regression.
+
+Reported metrics include:
+
+- Mean `R²`
+- Standard deviation of `R²`
+- Mean RMSE
+- Standard deviation of RMSE
+- Mean MAE
+- Standard deviation of MAE
+
+#### `LSTM_56`
+
+Contains the corresponding summary results for all 56 configurations evaluated using the RNN-LSTM model.
+
+#### `All_Evaluations`
+
+Contains the individual results obtained for each configuration and each temporal evaluation period.
+
+The sheet includes information such as:
+
+- Model
+- Configuration ID
+- Input variables
+- Evaluation-period number
+- Training start and end dates
+- Testing start and end dates
+- Number of training observations
+- Number of testing observations
+- `R²`
+- RMSE
+- MAE
+
+#### `Top_Bottom_3`
+
+Summarizes the three high-performing and three low-performing configurations identified for each model.
+
+#### `Test_Periods`
+
+Contains the temporal periods used for the final model evaluation.
+
+#### `Parameters`
+
+Contains the main methodological and RNN-LSTM parameters used in the experiment, including:
+
+- Training-window length
+- Test-window length
+- Minimum temporal coverage
+- LSTM lookback
+- Number of LSTM units
+- Number of LSTM layers
+- Dropout
+- Batch size
+- Learning rate
+- Number of epochs
+- Random seed
+
+---
+
+# Modeling Workflow
+
+The complete analysis followed the general sequence:
+
+`Original 5-min data`
+
+→ `Data validation and missing-value treatment`
+
+→ `Duplicate removal`
+
+→ `Short-gap interpolation`
+
+→ `Hourly aggregation`
+
+→ `Greenhouse-adapted ET0 calculation`
+
+→ `Correlation and predictor analysis`
+
+→ `Selection of eight candidate predictors`
+
+→ `Generation of 56 three-variable configurations`
+
+→ `Training-window analysis`
+
+→ `Three-week training window adopted`
+
+→ `LR and RNN-LSTM evaluation`
+
+→ `Eight temporal evaluation periods`
+
+→ `RMSE, MAE, and R² analysis`
+
+The models were evaluated under the same temporal framework to enable a consistent comparison between LR and RNN-LSTM.
+
+RNN-LSTM sequences were generated using a **24-h lookback** and were not allowed to cross missing temporal intervals.
+
+---
+
+# Dataset Structure and Reproducibility
+
+The files in this repository represent successive stages of the study:
+
+| File | Description |
+|---|---|
+| `original_data.csv` | Original 5-min meteorological records |
+| `data_post_preparation.csv` | Final preprocessed hourly meteorological dataset |
+| `data_with_Eto.csv` | Hourly meteorological dataset including calculated ET0 and intermediate Penman–Monteith variables |
+| `LR_LSTM_56_configurations.xlsx` | Complete LR and RNN-LSTM configuration and evaluation results |
+
+This organization allows the main stages of the analysis to be independently examined and reproduced.
+
+---
+
+# Purpose of the Repository
+
+The repository supports:
+
+- Analysis of greenhouse microclimatic conditions
+- Examination of indoor and outdoor meteorological variables
+- Reproduction of the meteorological-data preprocessing procedure
+- Reproduction of hourly reference evapotranspiration calculations
+- Analysis of calculated greenhouse `ET0`
+- Evaluation of relationships between environmental variables and `ET0`
+- Development of reduced-input evapotranspiration prediction models
+- Comparison of LR and RNN-LSTM approaches
+- Evaluation of alternative predictor combinations
+- Reproducible research and model-validation workflows
+
+---
+
+# Recommended Tools
+
+The datasets and results can be processed using:
+
+- Python
+- Google Colab / Jupyter Notebook
+- Pandas
+- NumPy
+- Scikit-learn
+- TensorFlow / Keras
+- Matplotlib
+- OpenPyXL
 
 ---
 
 # Paper Related and Citation
 
-This dataset is associated with a research article on reference evapotranspiration estimation under greenhouse conditions.
+This repository is associated with the manuscript:
+
+**Reference Evapotranspiration Prediction in a Greenhouse Using Reduced Meteorological Inputs: Linear Regression and RNN-LSTM Models**
 
 **Link to paper:** To be added after publication.
 
@@ -105,15 +320,15 @@ Citation information will be updated once the associated article is published.
 
 ---
 
-## 👤 Authors
+# Authors
 
-Fabián García-Vázquez
-Juan Esparza-Gómez
-Jesús A. Nava-Pintor
-Ma. del Rosario Martínez-Blanco
-Héctor A. Guerrero-Osuna
-Carlos A. Olvera-Olvera
-Juvenal Rodríguez-Resendiz
+- Juan M. Esparza-Gómez
+- Fabián García-Vázquez
+- Jesús A. Nava-Pintor
+- Ma. del Rosario Martínez-Blanco
+- Carlos A. Olvera-Olvera
+- Héctor A. Guerrero-Osuna
+- Juvenal Rodríguez-Resendiz
 
 ---
 
